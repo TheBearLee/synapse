@@ -52,6 +52,9 @@
     async getAttachment(id) {
       return req2p(this.store('attachments').get(id));
     },
+    async attachmentKeys() {
+      return req2p(this.store('attachments').getAllKeys());
+    },
     async allAttachments() {
       return req2p(this.store('attachments').getAll());
     },

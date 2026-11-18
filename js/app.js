@@ -54,7 +54,7 @@
   app.trash = async (p) => {
     const ts = Date.now();
     const kill = async (x) => {
-      x.deleted = true; x.deletedAt = ts; await S.db.putPage(x);
+      x.deleted = true; x.deletedAt = ts; x.updated = Date.now(); await S.db.putPage(x);
       for (const c of S.livePages().filter((c) => c.parentId === x.id)) await kill(c);
     };
     await kill(p);
@@ -66,7 +66,7 @@
   app.restore = async (p) => {
     const batch = [...S.pages.values()].filter((x) => x.deleted && x.deletedAt === p.deletedAt);
     for (const x of batch) {
-      x.deleted = false; delete x.deletedAt;
+      x.deleted = false; delete x.deletedAt; x.updated = Date.now();
       if (S.findByTitle(x.title) && S.findByTitle(x.title).id !== x.id) x.title = app.uniqueTitle(x.title);
       S.rebuildTitles();
     }
@@ -117,6 +117,89 @@
     const ps = S.livePages().filter((p) => p.type !== 'template' && p.type !== 'daily');
     if (ps.length) location.hash = '#/page/' + ps[Math.floor(Math.random() * ps.length)].id;
   };
+
+  /* ---------- sync hooks ---------- */
+  app.flush = () => { if (view && view.save && view.save.flush) view.save.flush(); };
+  app.afterSync = (res) => {
+    const cur = S.state.current;
+    if (cur && res.applied && res.applied.includes(cur)) route();
+    else app.refresh();
+    if (res.conflicts) S.toast(`Synced — ${res.conflicts} conflict${res.conflicts > 1 ? 's' : ''} saved as “(conflict …)” copies`, 5000);
+    else if (res.pulled) S.toast(`Synced ${res.pulled} change${res.pulled > 1 ? 's' : ''} from your other devices`);
+  };
+  function renderSyncStatus() {
+    const b = $('sync-status');
+    const sy = S.sync;
+    if (!sy || sy.status === 'off') { b.hidden = true; return; }
+    b.hidden = false;
+    const last = sy.lastSync();
+    const label = {
+      syncing: '⟳ Syncing…', pending: '☁ Unsynced', offline: '☁ Offline', error: '⚠ Sync error',
+      ok: '☁ Synced', idle: last ? '☁ Synced' : '☁ Not synced yet',
+    }[sy.status] || '☁';
+    b.textContent = label;
+    b.className = 'mini sync-status s-' + sy.status;
+    b.title = (sy.status === 'error' ? sy.error + '\n' : '') + (last ? 'Last synced ' + S.ago(last) : 'Never synced') + ' · click to sync now';
+  }
+  app.renderSyncStatus = renderSyncStatus;
+
+  function syncSection(m) {
+    const cfg = S.sync.config();
+    const wrap = h('div');
+    if (!cfg) {
+      const repoIn = h('input.input', { placeholder: 'owner/repository  e.g. TheBearLee/synapse-vault', value: localStorage.getItem('syncRepoHint') || '' });
+      const tokIn = h('input.input', { type: 'password', placeholder: 'Fine-grained personal access token (github_pat_…)', autocomplete: 'off' });
+      const err = h('div.small.err');
+      const btn = h('button.btn.primary', { onclick: async () => {
+        err.textContent = '';
+        btn.disabled = true; btn.textContent = 'Connecting…';
+        try {
+          localStorage.setItem('syncRepoHint', repoIn.value.trim());
+          const res = await S.sync.connect(repoIn.value, tokIn.value);
+          if (!res.private && !(await S.confirm('This repository is PUBLIC', `Anyone on the internet could read your notes in ${res.cfg.owner}/${res.cfg.repo}. Make it private on GitHub first (recommended), or continue anyway?`, 'Use it anyway'))) throw new Error('Cancelled — make the repository private, then connect again.');
+          const localCount = S.livePages().length;
+          if (res.remotePages && localCount) {
+            const replace = await S.confirm('Your cloud vault already has notes',
+              `${res.remotePages} notes are in GitHub and ${localCount} are on this device. Replace this device’s notes with the cloud copy? (Choose Cancel to merge both — fine if this device has notes you want to keep.)`, 'Replace this device');
+            if (replace) await S.db.clearAll();
+          }
+          S.sync.finishConnect(res.cfg);
+          tokIn.value = '';
+          await S.sync.run({ force: true, throw: true });
+          S.reindexAll();
+          S.toast('Sync connected ✓');
+          m.close(); openSettings(); route();
+        } catch (e) {
+          err.textContent = e.message;
+          if (S.sync.config()) { S.sync.disconnect(); }
+        } finally { btn.disabled = false; btn.textContent = 'Connect'; }
+      } }, 'Connect');
+      wrap.append(
+        h('p.small.muted', 'Sync your vault across computers and phones through a private GitHub repository. Notes still work offline; changes sync whenever you’re online.'),
+        h('ol.small.steps',
+          h('li', h('a', { href: 'https://github.com/new?name=synapse-vault&visibility=private', target: '_blank', rel: 'noopener' }, 'Create a private repository'), ' (e.g. ', h('code', 'synapse-vault'), ').'),
+          h('li', h('a', { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noopener' }, 'Create a fine-grained token'),
+            ': Repository access → ', h('b', 'Only select repositories'), ' → your vault; Permissions → ', h('b', 'Contents: Read and write'), '.'),
+          h('li', 'Paste both below. Do the same on each device (you can reuse the token).')),
+        repoIn, tokIn, h('div.row', btn), err,
+        h('p.small.muted', '🔒 The token is stored only in this browser and is sent only to api.github.com.'));
+    } else {
+      const sy = S.sync;
+      const st = h('div.small', sy.status === 'error' ? h('span.err', '⚠ ' + sy.error) : `Last synced ${sy.lastSync() ? S.ago(sy.lastSync()) : 'never'}`);
+      const auto = h('input', { type: 'checkbox', checked: cfg.auto !== false, onchange: () => { cfg.auto = auto.checked; sy.saveConfig(cfg); } });
+      wrap.append(
+        h('div.row.wrap', h('span.pill.ok', '☁ Connected'), h('a', { href: `https://github.com/${cfg.owner}/${cfg.repo}`, target: '_blank', rel: 'noopener' }, `${cfg.owner}/${cfg.repo}`), cfg.private === false ? h('span.pill', 'public!') : null),
+        st,
+        h('div.row.wrap',
+          h('button.btn.primary', { onclick: async () => { await sy.run({ force: true }); m.close(); openSettings(); } }, '⟳ Sync now'),
+          h('label.switch', auto, 'Sync automatically'),
+          h('button.btn.danger', { onclick: async () => {
+            if (!(await S.confirm('Disconnect sync?', 'Your notes stay on this device and in GitHub; this device just stops syncing and forgets the token.', 'Disconnect'))) return;
+            sy.disconnect(); m.close(); openSettings();
+          } }, 'Disconnect')));
+    }
+    return wrap;
+  }
 
   /* ---------- refresh after edits ---------- */
   app.refresh = () => { S.rebuildTitles(); renderSidebar(); if (S.state.current && S.state.right) renderRight(); renderTopbar(); };
@@ -594,8 +677,12 @@
       return s;
     };
     const pages = S.livePages().length;
-    const m = S.modal('Settings', [
+    let m;
+    const syncEl = syncSection({ close: () => m.close() });
+    m = S.modal('Settings', [
       h('div.settings',
+        h('h4', '☁ Sync across devices'),
+        syncEl,
         h('h4', 'Appearance'),
         h('div.prop', h('label', 'Theme'), sel('theme', 'system', [['system', 'Match system'], ['light', 'Light'], ['dark', 'Dark']])),
         h('div.prop', h('label', 'Editor font size'), sel('fontSize', '16', [['14', 'Small'], ['16', 'Medium'], ['18', 'Large'], ['20', 'Extra large']])),
@@ -621,7 +708,8 @@
         h('div.row.wrap',
           h('button.btn', { onclick: async () => { await S.seedVault(); S.reindexAll(); m.close(); S.toast('Sample pages added'); route(); } }, 'Add sample pages'),
           h('button.btn.danger', { onclick: async () => {
-            if (!(await S.confirm('Delete everything?', 'This permanently deletes every page, image and diagram in this browser. Export a backup first! This cannot be undone.', 'Delete everything'))) return;
+            if (!(await S.confirm('Delete everything?', 'This permanently deletes every page, image and diagram in this browser (sync is disconnected first, so your GitHub copy is untouched). Export a backup first! This cannot be undone.', 'Delete everything'))) return;
+            if (S.sync.config()) S.sync.disconnect(); // never let a local wipe propagate to the cloud vault
             await S.db.clearAll(); S.reindexAll(); localStorage.removeItem('recent'); location.hash = '#/home'; route(); S.toast('Vault cleared');
           } }, 'Delete all data')),
         h('h4', 'About'),
@@ -747,6 +835,11 @@
     S.reindexAll();
     bindGlobal();
     route();
+    S.sync.listeners.add(renderSyncStatus);
+    $('sync-status').onclick = () => S.sync.run({ force: true });
+    setInterval(renderSyncStatus, 30000);
+    S.sync.start();
+    renderSyncStatus();
     if (/^https?:$/.test(location.protocol) && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   boot();

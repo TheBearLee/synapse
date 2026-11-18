@@ -147,6 +147,14 @@ a.crumb:hover { background: var(--bg-3); }
 .tag-cloud { padding: 2px 6px 6px; display: flex; flex-wrap: wrap; gap: 2px; max-height: 120px; overflow: auto; align-items: center; }
 .sb-foot { border-top: 1px solid var(--border); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
 .sb-foot a { color: var(--text-2); }
+.sb-foot { gap: 6px; }
+.sync-status { white-space: nowrap; }
+.sync-status.s-error { color: var(--danger); }
+.sync-status.s-pending, .sync-status.s-syncing { color: var(--accent); }
+.sync-status.s-ok, .sync-status.s-idle { color: var(--ok); }
+.err { color: var(--danger); margin: 4px 0; }
+.steps { padding-left: 18px; margin: 6px 0 10px; line-height: 1.7; }
+.settings .input { margin: 4px 0; }
 
 /* ---------- page ---------- */
 .page { max-width: 860px; margin: 0 auto; padding: 0 56px 120px; }

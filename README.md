@@ -63,7 +63,21 @@ Synapse is a local-first notes app that mixes **Obsidian-style linked thinking**
 - **Import Markdown** files (frontmatter becomes page properties)
 - Trash with restore
 
-> ⚠️ Clearing your browser's site data deletes your vault. Use **Settings → Make storage persistent** and export backups regularly.
+> ⚠️ Clearing your browser's site data deletes your vault. Use **Settings → Make storage persistent** and export backups regularly — or turn on sync.
+
+### ☁ Sync across devices (via a private GitHub repo)
+Synapse stays offline-first; sync is optional and uses a **private GitHub repository you own** as the shared copy. No other server is involved.
+
+1. [Create a private repository](https://github.com/new?name=synapse-vault&visibility=private), e.g. `synapse-vault`.
+2. [Create a fine-grained personal access token](https://github.com/settings/personal-access-tokens/new): *Repository access → Only select repositories →* your vault repo; *Permissions → Contents: Read and write*. Pick an expiry you're comfortable with.
+3. In Synapse open **⚙️ Settings → Sync across devices**, enter `owner/synapse-vault` and the token, and click **Connect**. Repeat on each device.
+
+How it works:
+- Each device keeps a full local copy. Sync runs on startup, ~15 s after you edit, every 3 minutes, when you return to the tab and when you come back online. The sidebar shows the status; click it to sync now.
+- Changes go up as a single commit per sync, so the repo's history is a full version history of your notes.
+- Notes are stored as readable Markdown in `pages/` (trash in `trash/`, images in `attachments/`), with Synapse's metadata in the frontmatter. You can even add or edit `.md` files on GitHub and they sync in.
+- If the same page was edited on two devices before syncing, the newer edit wins and the other version is kept as a **“(conflict …)”** copy — nothing is lost.
+- The token is stored only in that browser and is only sent to `api.github.com`. “Delete all data” disconnects sync first, so it never wipes your cloud copy.
 
 ## Getting started
 
@@ -112,6 +126,7 @@ js/canvas.js        diagram whiteboard
 js/views.js         databases + query engine
 js/pageview.js      page view, properties, embeds, connections panel
 js/io.js            backup, Markdown/zip export, import
+js/sync.js          GitHub sync (git data API, merge, conflicts)
 js/seed.js          sample vault shown on first launch
 js/app.js           routing, sidebar, home, search, palette, settings
 sw.js               offline cache (service worker)

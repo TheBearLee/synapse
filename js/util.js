@@ -15,10 +15,11 @@ window.S = window.S || {};
       .replace(/\s+/g, '-');
 
   S.debounce = (fn, ms) => {
-    let t;
-    const d = (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
-    d.flush = (...a) => { clearTimeout(t); fn(...a); };
-    d.cancel = () => clearTimeout(t);
+    let t, pending = null;
+    const d = (...a) => { clearTimeout(t); pending = a; t = setTimeout(() => { const args = pending; pending = null; fn(...args); }, ms); };
+    // flush only runs if a call is actually waiting (never re-saves stale data)
+    d.flush = () => { clearTimeout(t); if (pending) { const args = pending; pending = null; fn(...args); } };
+    d.cancel = () => { clearTimeout(t); pending = null; };
     return d;
   };
 
