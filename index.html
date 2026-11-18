@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synapse</title>
+  <meta name="description" content="Synapse — an offline second brain. Linked notes, diagrams, books and a knowledge graph.">
+  <meta name="theme-color" content="#7c5cff">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sb-head">
+        <div class="brand"><img src="icon.svg" alt=""><span>Synapse</span></div>
+        <button class="icon-btn" id="sb-collapse" title="Hide sidebar (Ctrl+\)">⟨</button>
+      </div>
+      <button class="sb-search" id="open-palette"><span>🔍 Search or jump to…</span><kbd>Ctrl K</kbd></button>
+      <nav class="sb-nav">
+        <a href="#/home" data-nav="home">🏠 Home</a>
+        <a href="#/graph" data-nav="graph">🕸️ Graph view</a>
+        <a href="#/db/all" data-nav="db">🗂️ Databases</a>
+        <a href="#/db/book" data-nav="library">📚 Library</a>
+        <a href="#/search" data-nav="search">🔎 Full-text search</a>
+        <a href="#" id="nav-daily">📅 Today's note</a>
+      </nav>
+      <div class="sb-actions">
+        <button class="btn primary" id="new-page">＋ New page</button>
+        <button class="btn" id="new-canvas" title="New diagram canvas">◇ Diagram</button>
+      </div>
+      <div class="sb-section" id="sb-favorites-wrap">
+        <div class="sb-title">Favorites</div>
+        <div id="sb-favorites"></div>
+      </div>
+      <div class="sb-section grow">
+        <div class="sb-title">Pages <button class="mini" id="sort-tree" title="Sort">⇅</button></div>
+        <div id="sb-tree" class="tree"></div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-title">Tags</div>
+        <div id="sb-tags" class="tag-cloud"></div>
+      </div>
+      <div class="sb-foot">
+        <a href="#/trash">🗑️ Trash</a>
+        <button class="mini" id="open-settings" title="Settings, import & export">⚙️ Settings</button>
+      </div>
+    </aside>
+    <main id="main">
+      <div id="topbar">
+        <button class="icon-btn" id="sb-show" title="Show sidebar">☰</button>
+        <div id="crumbs"></div>
+        <div class="top-actions" id="top-actions"></div>
+        <button class="icon-btn" id="toggle-right" title="Toggle connections panel">◫</button>
+      </div>
+      <div id="content-wrap">
+        <div id="view"></div>
+        <aside id="rightpanel"></aside>
+      </div>
+    </main>
+  </div>
+  <div id="overlay" hidden></div>
+  <div id="toast"></div>
+  <input type="file" id="file-input" hidden>
+
+  <script src="js/util.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/links.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/graph.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/pageview.js"></script>
+  <script src="js/io.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
