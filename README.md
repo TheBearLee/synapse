@@ -1,5 +1,7 @@
 # 🧠 Synapse — an offline second brain
 
+**▶ Live app: https://thebearlee.github.io/synapse/** (open it, then use your browser's *Install app* button to keep it offline)
+
 Synapse is a local-first notes app that mixes **Obsidian-style linked thinking** with **Notion-style pages and databases**. It runs entirely in your browser with **no server, no account, no internet and no dependencies**. Your notes stay on your device.
 
 ![Editor with live preview](docs/editor.jpg)
